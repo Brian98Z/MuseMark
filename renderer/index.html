@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' data: blob: file:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file:; media-src 'self' file: blob:; font-src 'self' data:;" />
+  <title>MuseMark</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/icon.svg" />
+  <link rel="stylesheet" href="./vendor/vditor.css" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="theme-light">
+  <!-- 图标（Lucide 风格：24 视框 / stroke 2 / currentColor） -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <g id="i-folder-open"><path d="M6 14l1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></g>
+      <g id="i-doc"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></g>
+      <g id="i-image"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></g>
+      <g id="i-audio"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></g>
+      <g id="i-video"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></g>
+      <g id="i-chev-r"><path d="M9 18l6-6-6-6"/></g>
+      <g id="i-chev-d"><path d="M6 9l6 6 6-6"/></g>
+      <g id="i-zoom-in"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></g>
+      <g id="i-zoom-out"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M8 11h6"/></g>
+      <g id="i-fit"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></g>
+      <g id="i-x"><path d="M18 6L6 18M6 6l12 12"/></g>
+      <g id="i-prev"><path d="M15 18l-6-6 6-6"/></g>
+      <g id="i-next"><path d="M9 18l6-6-6-6"/></g>
+      <g id="i-folder"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></g>
+      <g id="i-highlight"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></g>
+      <g id="i-panel-hide"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></g>
+      <g id="i-panel-show"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/></g>
+      <g id="i-publish"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4 20-7Z"/></g>
+      <g id="i-toutiao"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/><path d="M20 7h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-1"/></g>
+      <g id="i-render"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="m10 8 5 2.5-5 2.5z"/></g>
+      <g id="i-split"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/><path d="M7 9h2M7 13h2M15 9h3M15 13h3"/></g>
+    </defs>
+  </svg>
+
+  <div id="layout">
+    <aside id="sidebar">
+      <div class="side-head">
+        <div class="seg">
+          <button class="seg-btn is-active" data-pane="files">文件</button>
+          <button class="seg-btn" data-pane="outline">大纲</button>
+        </div>
+        <button class="icon-btn" id="btn-open-folder" title="打开文件夹">
+          <svg class="ic" viewBox="0 0 24 24"><use href="#i-folder-open"/></svg>
+        </button>
+      </div>
+      <div class="side-body">
+        <div class="side-pane" id="pane-files">
+          <div id="folder-label">未打开文件夹</div>
+          <div id="filetree"></div>
+        </div>
+        <div class="side-pane is-hidden" id="pane-outline">
+          <div id="outline"></div>
+        </div>
+      </div>
+    </aside>
+
+    <main id="main">
+      <div id="findbar" class="is-hidden">
+        <input id="find-input" type="text" placeholder="查找…" spellcheck="false" />
+        <span id="find-count"></span>
+        <button id="find-prev" class="icon-btn" title="上一个">
+          <svg class="ic" viewBox="0 0 24 24"><use href="#i-prev"/></svg>
+        </button>
+        <button id="find-next" class="icon-btn" title="下一个">
+          <svg class="ic" viewBox="0 0 24 24"><use href="#i-next"/></svg>
+        </button>
+        <button id="find-close" class="icon-btn" title="关闭">
+          <svg class="ic" viewBox="0 0 24 24"><use href="#i-x"/></svg>
+        </button>
+      </div>
+
+      <div id="editor"></div>
+
+      <div id="viewer" class="is-hidden">
+        <div id="viewer-bar">
+          <span class="badge" id="viewer-kind"></span>
+          <span id="viewer-name"></span>
+          <span class="muted" id="viewer-meta"></span>
+          <span class="spacer"></span>
+          <button class="icon-btn" id="viewer-zoom-out" title="缩小">
+            <svg class="ic" viewBox="0 0 24 24"><use href="#i-zoom-out"/></svg>
+          </button>
+          <button class="icon-btn" id="viewer-fit" title="适应窗口">
+            <svg class="ic" viewBox="0 0 24 24"><use href="#i-fit"/></svg>
+          </button>
+          <button class="icon-btn" id="viewer-zoom-in" title="放大">
+            <svg class="ic" viewBox="0 0 24 24"><use href="#i-zoom-in"/></svg>
+          </button>
+          <span class="zoom-label" id="viewer-zoom-label">100%</span>
+        </div>
+        <div id="viewer-stage">
+          <img id="viewer-img" class="is-hidden" alt="" />
+          <audio id="viewer-audio" class="is-hidden" controls preload="metadata"></audio>
+          <video id="viewer-video" class="is-hidden" controls preload="metadata"></video>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <footer id="statusbar">
+    <span id="st-path" class="st-item">未命名</span>
+    <span class="spacer"></span>
+    <span id="st-words" class="st-item">0 字</span>
+    <span id="st-mode" class="st-item">实时渲染</span>
+    <span id="st-saved" class="st-item">已保存</span>
+    <button id="theme-toggle" class="theme-toggle" type="button" title="切换主题">主题：浅色</button>
+    <span id="st-zoom" class="st-item">100%</span>
+  </footer>
+
+  <div id="toast" class="is-hidden"></div>
+
+  <script src="./vendor/vditor/dist/index.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

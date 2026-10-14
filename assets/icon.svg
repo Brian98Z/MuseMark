@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="MuseMark">
+  <title>MuseMark</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d73ed"/>
+      <stop offset="1" stop-color="#0e4faa"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 应用底板：圆角方形（28 ≈ 128 的 22%，与界面 8px 圆角同一比例语言） -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#tile)"/>
+
+  <!-- 主体标记：单笔画 M（等宽起笔、圆角端点，与界面线性图标同构） -->
+  <path d="M35 83 L35 35 L64 65 L93 35 L93 83"
+        fill="none" stroke="#f4f8fe" stroke-width="12.5"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- 写作基线：暗示“光标/文本行”，弱化对比避免小尺寸糊成一团 -->
+  <rect x="47" y="95" width="34" height="7" rx="3.5" fill="#f4f8fe" opacity=".5"/>
+</svg>

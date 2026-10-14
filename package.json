@@ -1,0 +1,64 @@
+{
+  "name": "musemark",
+  "version": "1.0.0",
+  "description": "本地 Markdown 桌面编辑器与媒体预览器（无许可 / 无账号 / 无联网）",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64"
+  },
+  "author": "Brian98Z (https://github.com/Brian98Z)",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "vditor": "3.11.3"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "io.github.brian98z.musemark",
+    "productName": "MuseMark",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "assets/**/*",
+      "node_modules/electron/**/*",
+      "node_modules/vditor/**/*",
+      "package.json",
+      "!node_modules/.cache/**/*"
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon.png",
+      "artifactName": "MuseMark-${version}-win-${arch}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MuseMark"
+    },
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown", "mdown", "mkd", "txt", "png", "jpg", "jpeg", "jfif", "gif", "webp", "svg", "bmp", "avif", "ico", "mp3", "wav", "ogg", "oga", "flac", "m4a", "aac", "opus", "wma", "mp4", "webm", "mov", "mkv", "m4v", "avi", "ogv", "wmv"],
+        "name": "MuseMark document and media",
+        "description": "MuseMark 支持的文档与媒体文件",
+        "role": "Editor"
+      }
+    ]
+  },
+  "homepage": "https://github.com/Brian98Z",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Brian98Z"
+  }
+}
