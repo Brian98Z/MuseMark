@@ -37,7 +37,10 @@ jobs:
         run: |
           set -euo pipefail
           for image in release/macos/*.dmg; do hdiutil verify "$image"; done
-          app="src-tauri/target/${{ matrix.target }}/release/bundle/macos/MuseMark.app"
+          image=$(find release/macos -maxdepth 1 -name '*.dmg' -print -quit)
+          mount="$RUNNER_TEMP/musemark-dmg"
+          hdiutil attach "$image" -readonly -nobrowse -mountpoint "$mount"
+          app="$mount/MuseMark.app"
           executable="$app/Contents/MacOS/musemark"
           arch='${{ matrix.arch }}'
           if [ "$arch" = x64 ]; then arch=x86_64; fi
@@ -45,7 +48,7 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$app"
           "$executable" > "$RUNNER_TEMP/musemark-smoke.log" 2>&1 &
           pid=$!
-          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          trap 'kill "$pid" 2>/dev/null || true; hdiutil detach "$mount" || true' EXIT
           sleep 10
           if ! kill -0 "$pid"; then cat "$RUNNER_TEMP/musemark-smoke.log"; exit 1; fi
           osascript -e 'tell application "System Events" to get name of every process whose name is "musemark"'

@@ -28,7 +28,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb xdotool
+      - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb xdotool openbox dbus-x11
       - run: npm ci
       - run: npm run dist:linux:${{ matrix.arch }}
       - name: Verify DEB and launch native application
@@ -41,16 +41,18 @@ jobs:
             sudo apt-get install -y "$PWD/$package"
           done
           for image in release/linux/*.AppImage; do chmod +x "$image"; "$image" --appimage-extract >/dev/null; test -e squashfs-root/AppRun; done
-          xvfb-run -a bash -c '
+          xvfb-run -a dbus-run-session -- bash -c '
+            openbox > "$RUNNER_TEMP/openbox.log" 2>&1 &
             musemark > "$RUNNER_TEMP/musemark-smoke.log" 2>&1 &
             pid=$!
             trap "kill $pid 2>/dev/null || true" EXIT
             for attempt in {1..30}; do
               if ! kill -0 "$pid"; then cat "$RUNNER_TEMP/musemark-smoke.log"; exit 1; fi
-              if xdotool search --onlyvisible --pid "$pid" >/dev/null; then exit 0; fi
+              if xdotool search --onlyvisible --name MuseMark > "$RUNNER_TEMP/musemark-windows.txt"; then cat "$RUNNER_TEMP/musemark-windows.txt"; exit 0; fi
               sleep 1
             done
             cat "$RUNNER_TEMP/musemark-smoke.log"
+            xwininfo -root -tree
             exit 1
           '
           sha256sum release/linux/*.deb release/linux/*.AppImage > release/linux/SHA256SUMS-${{ matrix.arch }}.txt
