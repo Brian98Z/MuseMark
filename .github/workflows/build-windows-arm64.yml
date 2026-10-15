@@ -1,0 +1,41 @@
+name: Build Windows ARM64
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/build-windows-arm64.yml', 'package*.json', 'main.js', 'preload.js', 'renderer/**', 'assets/**', 'scripts/**']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run dist:win:arm64 -- --publish never
+      - name: Verify ARM64 payload and installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Get-Item release/win-arm64-unpacked/MuseMark.exe
+          $bytes = [IO.File]::ReadAllBytes($exe.FullName)
+          $pe = [BitConverter]::ToInt32($bytes, 0x3c)
+          if ([BitConverter]::ToUInt16($bytes, $pe + 4) -ne 0xaa64) { throw 'Payload is not ARM64' }
+          $installer = Get-Item release/MuseMark-*-win-arm64.exe
+          if ($installer.Length -eq 0) { throw 'Empty installer' }
+          & 7z t $installer.FullName
+          if ($LASTEXITCODE -ne 0) { throw 'Installer archive check failed' }
+          Get-FileHash $installer.FullName -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content release/SHA256SUMS-win-arm64.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MuseMark-win-arm64
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            release/*-win-arm64.exe
+            release/SHA256SUMS-win-arm64.txt

@@ -1,0 +1,76 @@
+name: Build Linux
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/build-linux.yml', 'package*.json', 'main.js', 'preload.js', 'renderer/**', 'assets/**', 'scripts/**']
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-22.04
+            deb_arch: amd64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            deb_arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install packaging and display dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0 libnss3 libgbm1 rpm
+      - run: npm ci
+      - run: npm run dist:linux:${{ matrix.arch }} -- --publish never
+      - name: Verify packages and launch installed application
+        shell: bash
+        run: |
+          set -euo pipefail
+          for package in release/*.deb; do
+            test "$(dpkg-deb -f "$package" Architecture)" = '${{ matrix.deb_arch }}'
+            dpkg-deb --info "$package"
+            sudo apt-get install -y "$PWD/$package"
+          done
+          appimage=$(find release -maxdepth 1 -name '*.AppImage' -print -quit)
+          chmod +x "$appimage"
+          "$appimage" --appimage-extract > "$RUNNER_TEMP/appimage-extract.log"
+          test -f squashfs-root/AppRun
+          executable=/opt/MuseMark/musemark
+          test -x "$executable"
+          sudo chown root:root /opt/MuseMark/chrome-sandbox
+          sudo chmod 4755 /opt/MuseMark/chrome-sandbox
+          xvfb-run -a "$executable" --user-data-dir="$RUNNER_TEMP/musemark-smoke" --remote-debugging-port=9229 > "$RUNNER_TEMP/musemark-smoke.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in {1..30}; do
+            if ! kill -0 "$pid" 2>/dev/null; then cat "$RUNNER_TEMP/musemark-smoke.log"; exit 1; fi
+            if curl -fsS http://127.0.0.1:9229/json/list -o "$RUNNER_TEMP/targets.json"; then
+              if node -e 'const t=require(process.argv[1]); process.exit(t.some(x=>x.type==="page" && x.url.includes("app.asar/renderer/index.html"))?0:1)' "$RUNNER_TEMP/targets.json"; then
+                ready=true
+                break
+              fi
+            fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then cat "$RUNNER_TEMP/musemark-smoke.log"; exit 1; fi
+          sha256sum release/*.AppImage release/*.deb > release/SHA256SUMS-linux-${{ matrix.arch }}.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MuseMark-linux-${{ matrix.arch }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/SHA256SUMS-linux-*.txt

@@ -6,9 +6,13 @@
   "scripts": {
     "start": "electron .",
     "dist:win": "electron-builder --win nsis --x64",
+    "dist:win:arm64": "electron-builder --win nsis --arm64",
     "dist:mac": "electron-builder --mac --x64 --arm64",
     "dist:mac:x64": "electron-builder --mac --x64",
-    "dist:mac:arm64": "electron-builder --mac --arm64"
+    "dist:mac:arm64": "electron-builder --mac --arm64",
+    "dist:linux": "electron-builder --linux --x64 --arm64",
+    "dist:linux:x64": "electron-builder --linux --x64",
+    "dist:linux:arm64": "electron-builder --linux --arm64"
   },
   "author": "Brian98Z (https://github.com/Brian98Z)",
   "license": "MIT",
@@ -50,6 +54,13 @@
       "icon": "assets/icon-mac.png",
       "artifactName": "MuseMark-${version}-mac-${arch}.${ext}",
       "identity": null
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Office",
+      "icon": "assets/icon.png",
+      "artifactName": "MuseMark-${version}-linux-${arch}.${ext}",
+      "maintainer": "Brian98Z <brian98z@users.noreply.github.com>"
     },
     "nsis": {
       "oneClick": false,
