@@ -4,6 +4,14 @@
 
 离线 Markdown 编辑器与图片、音视频预览器。界面使用 Vditor 3.11.3，桌面宿主已从 Electron 切换为 **Tauri 2 + 系统 WebView**，不再携带 Chromium/Node.js。
 
+## 下载客户端
+
+**[下载 MuseMark v1.0.0](https://github.com/Brian98Z/MuseMark/releases/tag/v1.0.0)** · [最新版本](https://github.com/Brian98Z/MuseMark/releases/latest)
+
+在 Release 的 **Assets** 中选择匹配系统和 CPU 架构的安装包；`Source code` 是源码，不是客户端。常见 Intel/AMD 电脑选择 x64，Apple Silicon Mac 和 Windows ARM 设备选择 ARM64。Linux 用户优先选择适配发行版的 DEB。
+
+下载同页 `SHA256SUMS.txt` 可校验安装包：Windows 使用 `Get-FileHash .\MuseMark-1.0.0-win-x64.exe -Algorithm SHA256`，macOS 使用 `shasum -a 256 <文件名>`，Linux 使用 `sha256sum <文件名>`，将输出与清单对应行比较。校验和用于检查文件完整性，不代替代码签名。
+
 ## Windows x64 验收
 
 新安装包：`release/windows/MuseMark-1.0.0-win-x64.exe`。旧 Electron 安装包保留于 `release/windows/previous/`；新旧大小及哈希以桌面检查点实测记录为准。没有 Developer ID/代码签名证书，Windows 可能显示未知发布者。
@@ -26,7 +34,7 @@ Windows x64 已完成本地运行检查；Windows ARM64、macOS x64/ARM64、Linu
 - macOS：打开 DMG，将 MuseMark 拖入 Applications；确认来源可信后，可在系统“隐私与安全性”放行未公证应用，不要关闭全局 Gatekeeper。
 - Debian/Ubuntu：`sudo apt install ./MuseMark-1.0.0-linux-x64.deb`（ARM64 更换文件名），让包管理器解析依赖。
 - AppImage：`chmod +x MuseMark-1.0.0-linux-x64.AppImage` 后运行；某些系统需 FUSE，解包可使用 `--appimage-extract`。不要用禁用沙箱解决运行错误。
-- 云端产物在对应 Actions 运行页的 Artifacts，通常需登录 GitHub 下载；不是 GitHub Release，过期后需重新构建。最终交付也保存到本地 `release/<系统>/`，附 SHA-256 清单。
+- 公开客户端通过 [GitHub Release](https://github.com/Brian98Z/MuseMark/releases/tag/v1.0.0) 下载，无需从 Actions 获取。Actions Artifacts 仅保留构建追溯用途，可能过期；本地交付副本保存在 `release/<系统>/`。
 
 ### 功能与验证区别
 
@@ -49,7 +57,7 @@ Windows x64 已实测文档读写、公式/图表、图片、部分音视频、�
 
 Debian/Ubuntu 用户优先选择 DEB，由系统包管理器安装依赖；AppImage 携带更多运行库，体积明显较大。本轮新增云端产物已下载至上述目录并通过 ZIP 完整性及 SHA-256 清单核对；Windows x64 沿用此前本地验收包。AppImage 仅验证解包，未验证实际启动。
 
-构建提交 `f36a4da`，标签 `build-platforms-20261015-tauri-2`。成功运行记录：[Windows ARM64](https://github.com/Brian98Z/MuseMark/actions/runs/38690893943)、[macOS](https://github.com/Brian98Z/MuseMark/actions/runs/38690893957)、[Linux](https://github.com/Brian98Z/MuseMark/actions/runs/38690894003)。安装包不提交到源码仓库；本地各系统目录附校验清单，云端下载使用这些运行页的 Artifacts。
+构建提交 `f36a4da`，标签 `build-platforms-20261015-tauri-2`。成功运行记录：[Windows ARM64](https://github.com/Brian98Z/MuseMark/actions/runs/38690893943)、[macOS](https://github.com/Brian98Z/MuseMark/actions/runs/38690893957)、[Linux](https://github.com/Brian98Z/MuseMark/actions/runs/38690894003)。安装包作为 v1.0.0 Release 附件发布，不提交到源码仓库；Release 附统一 `SHA256SUMS.txt`，本地各系统目录附分架构校验清单。
 
 ## 功能
 
