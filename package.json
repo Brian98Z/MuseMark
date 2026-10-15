@@ -47,7 +47,7 @@
     "mac": {
       "target": ["dmg", "zip"],
       "category": "public.app-category.productivity",
-      "icon": "assets/icon.png",
+      "icon": "assets/icon-mac.png",
       "artifactName": "MuseMark-${version}-mac-${arch}.${ext}",
       "identity": null
     },
