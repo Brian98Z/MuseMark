@@ -61,6 +61,16 @@ npm run dist:win -- --publish never
 
 输出安装器：`release/MuseMark-1.0.0-win-x64.exe`。当前产物未做 Authenticode 签名，Windows 可能提示未知发布者。2026-10-15 已验证安装向导可打开、内嵌应用可解包且 EXE/ASAR 与 `win-unpacked` 哈希一致，以及打包应用启动、中文输入和撤销；尚未验证实际安装、卸载、快捷方式与文件关联。使用 7za 检查 EXE 时，它会识别内嵌 7z 并提示尾部附加数据；这不是完整 NSIS 安装流程的验证。
 
+## 构建 macOS 安装包
+
+在 macOS 上安装 Node.js 22，执行 `npm ci`，然后执行 `npm run dist:mac -- --publish never`。只构建本机架构可用 `npm run dist:mac:arm64 -- --publish never`（Apple Silicon）或 `npm run dist:mac:x64 -- --publish never`（Intel）。Windows 不能完成这里的 DMG 创建与 codesign 验证。
+
+产物位于 `release/`：`MuseMark-1.0.0-mac-arm64.dmg` / `.zip` 及 `MuseMark-1.0.0-mac-x64.dmg` / `.zip`。DMG 打开后将 MuseMark 拖到 Applications；ZIP 解压后将 MuseMark.app 移入“应用程序”。选择与 Mac 芯片匹配的版本。
+
+GitHub Actions 的 **Build macOS** 工作流使用两种原生架构 runner，生成 DMG、ZIP 和 SHA-256 清单，并检查归档、Mach-O 架构及应用启动后的页面调试目标。main 上相关代码变更自动触发，也可手动运行。成功后从该次 Actions 运行页面的 Artifacts 下载 `MuseMark-mac-arm64` 或 `MuseMark-mac-x64`（保留 30 天）；不会自动发布 GitHub Release。
+
+这些构建仅作 **ad-hoc 临时签名**，没有 Apple Developer ID 认证或公证。首次打开可能被 Gatekeeper 拦截；核实来源后，在“系统设置 → 隐私与安全性”选择“仍要打开”。企业管理策略可能禁止放行。不要全局关闭 Gatekeeper。CI 启动检查不等于在用户 Mac 上通过下载隔离、首次安装及所有编辑功能验收。
+
 ## 快捷键
 
 - 文件：`Ctrl+N` 新建 · `Ctrl+O` 打开 · `Ctrl+S` 保存 · `Ctrl+Shift+S` 另存为 · `Ctrl+Shift+O` 打开文件夹 · `Ctrl+W` 关闭 · `Ctrl+Q` 退出

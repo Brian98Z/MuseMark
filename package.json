@@ -5,7 +5,10 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist:win": "electron-builder --win nsis --x64"
+    "dist:win": "electron-builder --win nsis --x64",
+    "dist:mac": "electron-builder --mac --x64 --arm64",
+    "dist:mac:x64": "electron-builder --mac --x64",
+    "dist:mac:arm64": "electron-builder --mac --arm64"
   },
   "author": "Brian98Z (https://github.com/Brian98Z)",
   "license": "MIT",
@@ -21,6 +24,7 @@
     "appId": "io.github.brian98z.musemark",
     "productName": "MuseMark",
     "asar": true,
+    "afterPack": "scripts/sign-macos.cjs",
     "directories": {
       "output": "release"
     },
@@ -39,6 +43,13 @@
       "icon": "assets/icon.png",
       "artifactName": "MuseMark-${version}-win-${arch}.${ext}",
       "signAndEditExecutable": false
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.productivity",
+      "icon": "assets/icon.png",
+      "artifactName": "MuseMark-${version}-mac-${arch}.${ext}",
+      "identity": null
     },
     "nsis": {
       "oneClick": false,
