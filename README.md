@@ -12,7 +12,7 @@
 
 Windows 使用 Microsoft Edge WebView2。已有运行时时无需重复安装；缺少时，NSIS 安装器下载微软 Evergreen Bootstrapper 并安装运行时，因此首次安装可能需要联网。应用本身不访问外部服务；用户点击 http/https/mailto 外链时交给系统浏览器。
 
-Windows x64 已完成本地运行检查；其他平台正在通过手动工作流构建，以下格式是交付目标，不代表尚未结束的构建已通过。macOS/Linux 的系统 WebView 媒体支持不同，当前原生 PDF 导出仅实现 Windows WebView2；macOS/Linux 点击 PDF 会报告不支持，不能将这些包视为全功能等价版本。
+Windows x64 已完成本地运行检查；Windows ARM64、macOS x64/ARM64、Linux x64/ARM64 已完成本轮 Tauri 云端构建。macOS/Linux 的系统 WebView 媒体支持不同，当前原生 PDF 导出仅实现 Windows WebView2；macOS/Linux 点击 PDF 会报告不支持，不能将这些包视为全功能等价版本。
 
 ## 系统版本与安装
 
@@ -30,7 +30,26 @@ Windows x64 已完成本地运行检查；其他平台正在通过手动工作�
 
 ### 功能与验证区别
 
-Windows x64 已实测文档读写、公式/图表、图片、部分音视频、单实例、关闭保护及 PDF。Windows ARM64 在 x64 runner 上仅做交叉构建/PE 架构检查；macOS/Linux 的原生进程/窗口 smoke 也不等于全部 UI 功能、升级安装及文件关联已验收。Linux x64 以 Ubuntu 22.04、ARM64 以 Ubuntu 24.04 为构建基线，不保证更老发行版兼容。具体成功构建和文件校验值在交付时记录。
+Windows x64 已实测文档读写、公式/图表、图片、部分音视频、单实例、关闭保护及 PDF。Windows ARM64 在 x64 runner 上通过交叉构建及 PE 架构检查，未原生启动；macOS 两架构通过最终 DMG 完整性、挂载后应用架构、签名及进程启动检查；Linux 两架构通过 DEB 安装、架构检查、AppImage 解包以及安装后 Xvfb/DBus/Openbox 会话的可见窗口检查。这些 smoke 不等于全部 UI 功能、升级安装及文件关联已验收。Linux x64 以 Ubuntu 22.04、ARM64 以 Ubuntu 24.04 为构建基线，不保证更老发行版兼容。
+
+### 本轮交付文件（2026-10-15）
+
+文件统一带 `MuseMark-1.0.0-` 前缀；大小为安装包本身，不包含系统先决条件。
+
+| 目录 | 文件后缀 | 大小（MiB） |
+|---|---|---:|
+| `release/windows/` | `win-x64.exe` | 4.41 |
+| `release/windows/` | `win-arm64.exe` | 4.24 |
+| `release/macos/` | `mac-x64.dmg` | 4.84 |
+| `release/macos/` | `mac-arm64.dmg` | 4.70 |
+| `release/linux/` | `linux-x64.deb` | 5.20 |
+| `release/linux/` | `linux-arm64.deb` | 5.12 |
+| `release/linux/` | `linux-x64.AppImage` | 80.06 |
+| `release/linux/` | `linux-arm64.AppImage` | 78.30 |
+
+Debian/Ubuntu 用户优先选择 DEB，由系统包管理器安装依赖；AppImage 携带更多运行库，体积明显较大。本轮新增云端产物已下载至上述目录并通过 ZIP 完整性及 SHA-256 清单核对；Windows x64 沿用此前本地验收包。AppImage 仅验证解包，未验证实际启动。
+
+构建提交 `f36a4da`，标签 `build-platforms-20261015-tauri-2`。成功运行记录：[Windows ARM64](https://github.com/Brian98Z/MuseMark/actions/runs/38690893943)、[macOS](https://github.com/Brian98Z/MuseMark/actions/runs/38690893957)、[Linux](https://github.com/Brian98Z/MuseMark/actions/runs/38690894003)。安装包不提交到源码仓库；本地各系统目录附校验清单，云端下载使用这些运行页的 Artifacts。
 
 ## 功能
 
@@ -83,7 +102,7 @@ npm run dist:win
 
 架构在文件名中区分。原生中间输出位于 `src-tauri/target/`，前端过滤输出位于 `.build/web/`，均不入 Git。
 
-其他架构命令：`dist:win:arm64`、`dist:mac:x64`、`dist:mac:arm64`、`dist:linux:x64`、`dist:linux:arm64`。macOS DMG 需 Mac 构建，Linux 需 WebKitGTK 开发环境；交叉编译成功不代表该架构启动已验证。工作流只允许手动触发，不因共享代码改动自动打包所有平台。
+其他架构命令：`dist:win:arm64`、`dist:mac:x64`、`dist:mac:arm64`、`dist:linux:x64`、`dist:linux:arm64`。macOS DMG 需 Mac 构建，Linux 需 WebKitGTK 开发环境；交叉编译成功不代表该架构启动已验证。工作流通过手动 dispatch 或显式 `build-platforms-*` 标签触发，普通 main 推送不自动重打包。仅有 Contents/Workflows 权限的令牌可能无法调用 dispatch API（需 Actions 写权限），可使用经过授权的专用构建标签，不强推或覆盖已有标签。
 
 ## 结构
 
