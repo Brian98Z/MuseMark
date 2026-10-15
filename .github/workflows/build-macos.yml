@@ -48,7 +48,9 @@ jobs:
           app=$(find release -maxdepth 2 -name MuseMark.app -type d -print -quit)
           test -n "$app"
           executable="$app/Contents/MacOS/MuseMark"
-          lipo -verify_arch "$(case '${{ matrix.arch }}' in x64) echo x86_64;; *) echo arm64;; esac)" "$executable"
+          arch='${{ matrix.arch }}'
+          if [ "$arch" = x64 ]; then arch=x86_64; fi
+          lipo "$executable" -verify_arch "$arch"
           "$executable" --user-data-dir="$RUNNER_TEMP/musemark-smoke" --remote-debugging-port=9229 > "$RUNNER_TEMP/musemark-smoke.log" 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT
