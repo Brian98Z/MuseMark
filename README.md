@@ -48,6 +48,19 @@ npm run dist:win
 
 已注册格式：Markdown/TXT（`.md`、`.markdown`、`.mdown`、`.mkd`、`.txt`），图片（`.png`、`.jpg`、`.jpeg`、`.jfif`、`.gif`、`.webp`、`.svg`、`.bmp`、`.avif`、`.ico`），音频（`.mp3`、`.wav`、`.ogg`、`.oga`、`.flac`、`.m4a`、`.aac`、`.opus`、`.wma`）及视频（`.mp4`、`.webm`、`.mov`、`.mkv`、`.m4v`、`.avi`、`.ogv`、`.wmv`）。
 
+### 使用本地 NSIS 工具包
+
+`ELECTRON_BUILDER_NSIS_DIR` 应指向包含 `Bin/makensis.exe`、`Include/`、`Plugins/`、`Stubs/` 和 `elevate.exe` 的目录。若自备包将 `makensis.exe` 放在根目录，需复制到 `Bin/makensis.exe`；builder 会将 `NSISDIR` 设置为该根目录。
+
+NSIS 编译器与 `nsis-resources-3.4.1` 是两个独立依赖。已有资源归档时，先核对 SHA-512（Base64）：`Dqd6g+2buwwvoG1Vyf6BHR1b+25QMmPcwZx40atOT57gH27rkjOei1L0JTldxZu4NFoEmW4kJgZ3DlSWVON3+Q==`，再将其中的 `plugins/` 解压至 `%LOCALAPPDATA%/electron-builder/Cache/nsis/nsis-resources-3.4.1/`（未覆盖默认缓存目录时）。不要将 `file://` 当作 app-builder 下载地址。
+
+```powershell
+$env:ELECTRON_BUILDER_NSIS_DIR = (Resolve-Path '.build/nsis-bundle/nsis-bundle/windows').Path
+npm run dist:win -- --publish never
+```
+
+输出安装器：`release/MuseMark-1.0.0-win-x64.exe`。当前产物未做 Authenticode 签名，Windows 可能提示未知发布者。2026-10-15 已验证安装向导可打开、内嵌应用可解包且 EXE/ASAR 与 `win-unpacked` 哈希一致，以及打包应用启动、中文输入和撤销；尚未验证实际安装、卸载、快捷方式与文件关联。使用 7za 检查 EXE 时，它会识别内嵌 7z 并提示尾部附加数据；这不是完整 NSIS 安装流程的验证。
+
 ## 快捷键
 
 - 文件：`Ctrl+N` 新建 · `Ctrl+O` 打开 · `Ctrl+S` 保存 · `Ctrl+Shift+S` 另存为 · `Ctrl+Shift+O` 打开文件夹 · `Ctrl+W` 关闭 · `Ctrl+Q` 退出
