@@ -1,6 +1,8 @@
 name: Build Linux
 on:
   workflow_dispatch:
+  push:
+    tags: ['build-platforms-*']
 permissions:
   contents: read
 jobs:
