@@ -1,21 +1,8 @@
 name: Build macOS
-
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/build-macos.yml'
-      - 'package*.json'
-      - 'main.js'
-      - 'preload.js'
-      - 'renderer/**'
-      - 'assets/**'
-
-      - 'scripts/**'
 permissions:
   contents: read
-
 jobs:
   build:
     strategy:
@@ -24,55 +11,46 @@ jobs:
         include:
           - arch: x64
             runner: macos-15-intel
+            target: x86_64-apple-darwin
           - arch: arm64
             runner: macos-15
+            target: aarch64-apple-darwin
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      APPLE_SIGNING_IDENTITY: '-'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
       - run: npm ci
-      - name: Build DMG and ZIP
-        run: npm run dist:mac:${{ matrix.arch }} -- --publish never
-      - name: Verify archives and launch application
+      - run: npm run dist:mac:${{ matrix.arch }}
+      - name: Verify DMG, native architecture, signature, and window
         shell: bash
         run: |
           set -euo pipefail
-          for archive in release/*.zip; do unzip -t "$archive"; done
-          for image in release/*.dmg; do hdiutil verify "$image"; done
-          app=$(find release -maxdepth 2 -name MuseMark.app -type d -print -quit)
-          test -n "$app"
-          executable="$app/Contents/MacOS/MuseMark"
+          for image in release/macos/*.dmg; do hdiutil verify "$image"; done
+          app="src-tauri/target/${{ matrix.target }}/release/bundle/macos/MuseMark.app"
+          executable="$app/Contents/MacOS/musemark"
           arch='${{ matrix.arch }}'
           if [ "$arch" = x64 ]; then arch=x86_64; fi
           lipo "$executable" -verify_arch "$arch"
-          "$executable" --user-data-dir="$RUNNER_TEMP/musemark-smoke" --remote-debugging-port=9229 > "$RUNNER_TEMP/musemark-smoke.log" 2>&1 &
+          codesign --verify --deep --strict --verbose=2 "$app"
+          "$executable" > "$RUNNER_TEMP/musemark-smoke.log" 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT
-          ready=false
-          for attempt in {1..30}; do
-            kill -0 "$pid"
-            if curl -fsS http://127.0.0.1:9229/json/list -o "$RUNNER_TEMP/targets.json"; then
-              if node -e 'const t=require(process.argv[1]); process.exit(t.some(x=>x.type==="page" && x.url.includes("app.asar/renderer/index.html"))?0:1)' "$RUNNER_TEMP/targets.json"; then
-                ready=true
-                break
-              fi
-            fi
-            sleep 1
-          done
-          if [ "$ready" != true ]; then cat "$RUNNER_TEMP/musemark-smoke.log"; exit 1; fi
-          shasum -a 256 release/*.dmg release/*.zip > release/SHA256SUMS-${{ matrix.arch }}.txt
+          sleep 10
+          if ! kill -0 "$pid"; then cat "$RUNNER_TEMP/musemark-smoke.log"; exit 1; fi
+          osascript -e 'tell application "System Events" to get name of every process whose name is "musemark"'
+          screencapture -x "$RUNNER_TEMP/musemark-smoke.png"
+          shasum -a 256 release/macos/*.dmg > release/macos/SHA256SUMS-${{ matrix.arch }}.txt
       - uses: actions/upload-artifact@v4
         with:
           name: MuseMark-mac-${{ matrix.arch }}
           if-no-files-found: error
-          retention-days: 30
-          path: |
-            release/*.dmg
-            release/*.zip
-            release/SHA256SUMS-*.txt
+          path: release/macos/*

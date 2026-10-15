@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MuseMark",
+  "version": "1.0.0",
+  "identifier": "io.github.brian98z.musemark",
+  "build": {
+    "beforeBuildCommand": "node scripts/prepare-web.cjs",
+    "beforeDevCommand": "node scripts/prepare-web.cjs",
+    "frontendDist": "../.build/web"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob:; media-src 'self' asset: http://asset.localhost blob:; font-src 'self' data:; connect-src ipc: http://ipc.localhost asset: http://asset.localhost 'self'; object-src 'none'; frame-src 'self' blob:",
+      "assetProtocol": { "enable": true, "scope": [] }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "category": "Productivity",
+    "shortDescription": "Offline Markdown editor and media viewer",
+    "copyright": "Copyright Brian98Z",
+    "icon": ["icons/icon.ico", "icons/icon.png"],
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
+      "nsis": { "installMode": "currentUser", "languages": ["SimpChinese", "English"], "displayLanguageSelector": false, "installerHooks": "installer-hooks.nsh", "installerIcon": "icons/icon.ico", "uninstallerIcon": "icons/icon.ico" }
+    },
+    "fileAssociations": [{
+      "ext": ["md", "markdown", "mdown", "mkd", "txt", "png", "jpg", "jpeg", "jfif", "gif", "webp", "svg", "bmp", "avif", "ico", "mp3", "wav", "ogg", "oga", "flac", "m4a", "aac", "opus", "wma", "mp4", "webm", "mov", "mkv", "m4v", "avi", "ogv", "wmv"],
+      "name": "MuseMark document and media",
+      "role": "Editor"
+    }]
+  }
+}

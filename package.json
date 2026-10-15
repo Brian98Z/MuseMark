@@ -1,86 +1,20 @@
 {
   "name": "musemark",
   "version": "1.0.0",
-  "description": "本地 Markdown 桌面编辑器与媒体预览器（无许可 / 无账号 / 无联网）",
-  "main": "main.js",
-  "scripts": {
-    "start": "electron .",
-    "dist:win": "electron-builder --win nsis --x64",
-    "dist:win:arm64": "electron-builder --win nsis --arm64",
-    "dist:mac": "electron-builder --mac --x64 --arm64",
-    "dist:mac:x64": "electron-builder --mac --x64",
-    "dist:mac:arm64": "electron-builder --mac --arm64",
-    "dist:linux": "electron-builder --linux --x64 --arm64",
-    "dist:linux:x64": "electron-builder --linux --x64",
-    "dist:linux:arm64": "electron-builder --linux --arm64"
-  },
+  "description": "本地 Markdown 桌面编辑器与媒体预览器（系统 WebView）",
+  "private": true,
   "author": "Brian98Z (https://github.com/Brian98Z)",
   "license": "MIT",
-  "private": true,
-  "dependencies": {
-    "vditor": "3.11.3"
+  "homepage": "https://github.com/Brian98Z/MuseMark",
+  "repository": { "type": "git", "url": "https://github.com/Brian98Z/MuseMark.git" },
+  "scripts": {
+    "start": "node scripts/build-desktop.cjs dev",
+    "dist:win": "node scripts/build-desktop.cjs build --bundles nsis",
+    "dist:win:arm64": "node scripts/build-desktop.cjs build --target aarch64-pc-windows-msvc --bundles nsis",
+    "dist:mac:x64": "node scripts/build-desktop.cjs build --target x86_64-apple-darwin --bundles dmg",
+    "dist:mac:arm64": "node scripts/build-desktop.cjs build --target aarch64-apple-darwin --bundles dmg",
+    "dist:linux:x64": "node scripts/build-desktop.cjs build --target x86_64-unknown-linux-gnu --bundles deb,appimage",
+    "dist:linux:arm64": "node scripts/build-desktop.cjs build --target aarch64-unknown-linux-gnu --bundles deb,appimage"
   },
-  "devDependencies": {
-    "electron": "44.7.0",
-    "electron-builder": "26.0.12"
-  },
-  "build": {
-    "appId": "io.github.brian98z.musemark",
-    "productName": "MuseMark",
-    "asar": true,
-    "afterPack": "scripts/sign-macos.cjs",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "renderer/**/*",
-      "assets/**/*",
-      "node_modules/electron/**/*",
-      "node_modules/vditor/**/*",
-      "package.json",
-      "!node_modules/.cache/**/*"
-    ],
-    "win": {
-      "target": ["nsis"],
-      "icon": "assets/icon.png",
-      "artifactName": "MuseMark-${version}-win-${arch}.${ext}",
-      "signAndEditExecutable": false
-    },
-    "mac": {
-      "target": ["dmg", "zip"],
-      "category": "public.app-category.productivity",
-      "icon": "assets/icon-mac.png",
-      "artifactName": "MuseMark-${version}-mac-${arch}.${ext}",
-      "identity": null
-    },
-    "linux": {
-      "target": ["AppImage", "deb"],
-      "category": "Office",
-      "icon": "assets/icon.png",
-      "artifactName": "MuseMark-${version}-linux-${arch}.${ext}",
-      "maintainer": "Brian98Z <brian98z@users.noreply.github.com>"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "MuseMark"
-    },
-    "fileAssociations": [
-      {
-        "ext": ["md", "markdown", "mdown", "mkd", "txt", "png", "jpg", "jpeg", "jfif", "gif", "webp", "svg", "bmp", "avif", "ico", "mp3", "wav", "ogg", "oga", "flac", "m4a", "aac", "opus", "wma", "mp4", "webm", "mov", "mkv", "m4v", "avi", "ogv", "wmv"],
-        "name": "MuseMark document and media",
-        "description": "MuseMark 支持的文档与媒体文件",
-        "role": "Editor"
-      }
-    ]
-  },
-  "homepage": "https://github.com/Brian98Z",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Brian98Z"
-  }
+  "devDependencies": { "@tauri-apps/cli": "2.12.3" }
 }

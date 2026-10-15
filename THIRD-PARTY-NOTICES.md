@@ -8,9 +8,10 @@ MuseMark 自身的界面、交互、主进程逻辑、文件树与预览器均�
 
 | 组件 | 版本 | 许可 | 版权 | 来源 |
 |---|---|---|---|---|
-| Electron | 44.7.0 | MIT | © Electron contributors / OpenJS Foundation | https://github.com/electron/electron |
-| Chromium | 152.0.7977.130 | BSD-3-Clause | © The Chromium Authors | https://www.chromium.org |
-| Node.js | 20.18.3 | MIT | © Node.js contributors | https://nodejs.org |
+| Tauri | 2.12.4（依赖精确版本见 Cargo.lock） | MIT / Apache-2.0 | © Tauri Programme contributors | https://github.com/tauri-apps/tauri |
+| Wry / Tao / Tauri 插件 | 见 Cargo.lock | 各 crate 声明的许可 | 各项目贡献者 | https://github.com/tauri-apps |
+
+Windows 复用用户系统安装的 Microsoft Edge WebView2，不在应用包中分发 Electron、Chromium 或 Node.js。缺少 WebView2 时，安装程序下载微软运行时引导器，运行时受微软条款约束。macOS/Linux 分别使用 WKWebView/WebKitGTK，当前迁移优先验证 Windows。
 
 ## 渲染内核：Vditor
 
@@ -35,7 +36,7 @@ Mermaid 的构建产物内部还包含其自身依赖：chevrotain、langium、d
 
 ## 已从分发目录移除的内核内置引擎
 
-以下引擎本项目未启用，已从 `renderer/vendor/vditor/dist/js/` 删除（如需启用，可从 `node_modules/vditor/dist/js/` 恢复对应目录）：
+以下引擎本项目未启用，已从 `renderer/vendor/vditor/dist/js/` 删除；需要时应从对应版本的官方 Vditor 发布包恢复并补充功能验收：
 
 | 引擎 | 许可 | 版权 / 作者 |
 |---|---|---|
@@ -52,9 +53,9 @@ Mermaid 的构建产物内部还包含其自身依赖：chevrotain、langium、d
 ## 完整许可文本
 
 - highlight.js：`renderer/vendor/vditor/dist/js/highlight.js/LICENSE`
-- Electron / Chromium / Node.js：见各自发行包内的 `LICENSE*` 文件
+- Tauri 及 Rust 依赖：依赖和版本见 `src-tauri/Cargo.lock`，完整许可证文本位于各 crate 源码包（构建工具目录的 Cargo registry 缓存）。
 - 其余组件：许可声明保留在对应分发文件内部
 
 ## 开发与打包依赖
 
-Node.js/npm 依赖版本固定于 `package-lock.json`。运行时使用 Vditor 3.11.3（MIT）；构建依赖包括 Electron 44.7.0（MIT）和 electron-builder 26.0.12（MIT）。Electron 构建依赖提供应用运行时，随发行版包含 Electron、Chromium 与 Node.js；版本信息以打包出的 Electron runtime 为准。electron-builder 的传递依赖各自遵循对应 npm 包的许可证。完整第三方声明与许可文件保留在发行包、`node_modules/` 与 `renderer/vendor/`。
+Node.js/npm 仅用于构建，锁定在 package-lock.json，当前直接构建依赖为 @tauri-apps/cli 2.12.3。Rust 运行时依赖锁定在 src-tauri/Cargo.lock。Vditor 3.11.3 作为离线浏览器资源随包分发；diff-match-patch 已内嵌于 Vditor，无需再次分发独立 Node 包。保留 renderer/vendor 中的版权声明；开发资源与发布排除规则由 scripts/prepare-web.cjs 控制。

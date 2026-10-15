@@ -36,7 +36,11 @@ function kindOfPath(p) {
   return 'other';
 }
 const baseName = (p) => (p ? p.split(/[\\/]/).pop() : '未命名');
-const toFileUrl = (p) => 'file:///' + encodeURI(String(p).replace(/\\/g, '/'));
+const toFileUrl = (p) => {
+  const normalized = String(p).replace(/\\/g, '/');
+  const absolute = /^[A-Za-z]:\//.test(normalized) ? `/${normalized}` : normalized.startsWith('/') ? normalized : `/${normalized}`;
+  return `file://${absolute.split('/').map((part, index) => index === 0 ? '' : index === 1 && /^[A-Za-z]:$/.test(part) ? part : encodeURIComponent(part)).join('/')}`;
+};
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const cssEscape = (s) => String(s).replace(/["\\]/g, '\\$&');
 function fmtSize(n) {
@@ -137,7 +141,7 @@ function initEditor() {
       theme: { current: 'light', path: './vendor/vditor/dist/css/content-theme' },
       maxWidth: 1080,
     },
-    // 链接点击交给我们处理（默认 fallback 是 window.open，在 Electron 中会被拦掉）
+    // 链接点击交给我们处理，避免将本地链接交给系统默认打开器。
     link: {
       isOpen: false,
       click: (el) => {
@@ -206,11 +210,12 @@ function stopMedia() {
 async function showViewer(p, kind) {
   state.path = p;
   state.kind = kind;
-  state.dirty = false;
+  setDirty(false);
   stopMedia();
   hideEditorView();
 
-  const url = toFileUrl(p);
+  if (!await window.omp.stat(p)) { toast('无法读取媒体文件'); return; }
+  const url = window.omp.toAssetUrl(p);
   $('#viewer-kind').textContent = { image: '图片', audio: '音频', video: '视频' }[kind];
   $('#viewer-name').textContent = baseName(p);
   $('#viewer-name').title = p;
@@ -286,6 +291,7 @@ const viewerFit = () => { state.viewerZoom = 1; applyViewerZoom(); };
 
 /* -------------------------------------------------------------- 标题/状态 */
 function setDirty(v) {
+  if (state.dirty !== v) window.omp.setDirty(v).catch((error) => toast('未保存状态同步失败：' + error));
   state.dirty = v;
   const el = $('#st-saved');
   el.textContent = v ? '未保存' : '已保存';
@@ -296,6 +302,7 @@ function setDirty(v) {
 function updateTitle() {
   const name = state.path ? baseName(state.path) : '未命名';
   document.title = (state.dirty ? '● ' : '') + name + ' — MuseMark';
+  window.__TAURI__.window.getCurrentWindow().setTitle(document.title).catch((error) => console.error(error));
   $('#st-path').textContent = state.path || '未命名';
   $('#st-path').title = state.path || '';
 }
@@ -486,15 +493,23 @@ function absolutizeDoc() {
   clearTimeout(absolutizeTimer);
   absolutizeTimer = setTimeout(() => {
     if (!state.path || state.kind !== 'md') return;
-    const base = toFileUrl(state.path);
     const root = document.querySelector('.vditor-ir .vditor-reset') || document.querySelector('.vditor-reset');
     if (!root) return;
     root.querySelectorAll('img[src], video[src], audio[src], source[src]').forEach((el) => {
       const raw = el.getAttribute('src') || '';
-      if (!raw || /^(https?:|data:|blob:|file:)/i.test(raw)) return;
-      try { el.setAttribute('src', new URL(raw, base).href); } catch {}
+      if (!raw || /^(https?:|data:|blob:|asset:|tauri:)/i.test(raw)) return;
+      try {
+        const resolved = new URL(raw, toFileUrl(state.path));
+        if (resolved.protocol === 'file:') el.setAttribute('src', window.omp.toAssetUrl(fileUrlToPath(resolved)));
+      } catch {}
     });
   }, 120);
+}
+
+function fileUrlToPath(url) {
+  let path = decodeURIComponent(url.pathname);
+  if (/^\/[A-Za-z]:/.test(path)) path = path.slice(1);
+  return /^\/?[A-Za-z]:/.test(path) ? path.replace(/\//g, '\\') : path;
 }
 
 function resolveHref(href) {
@@ -506,7 +521,7 @@ function resolveHref(href) {
   try {
     const base = state.path ? toFileUrl(state.path) : 'file:///';
     const u = new URL(h, base);
-    if (u.protocol === 'file:') path = decodeURIComponent(u.pathname.replace(/^\//, '')).replace(/\//g, '\\');
+    if (u.protocol === 'file:') path = fileUrlToPath(u);
   } catch {}
   if (!path) return { type: 'unknown', url: h };
   return { type: 'file', path };
@@ -765,25 +780,19 @@ function exportCss() {
   `;
 }
 
-function standaloneHtml() {
+async function standaloneHtml() {
   const title = (state.path ? baseName(state.path) : '未命名').replace(/\.(md|markdown|txt)$/i, '');
-  const body = vditor.getHTML();
-  return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
-<title>${escapeHtml(title)}</title>
-<link rel="stylesheet" href="./vendor/vditor/dist/index.css">
-<link rel="stylesheet" href="./vendor/vditor/dist/css/content-theme/${state.theme === 'dark' ? 'dark' : 'light'}.css">
-<style>${exportCss()}</style></head>
-<body><article class="markdown-body vditor-reset">${body}</article></body></html>`;
+  return renderStandaloneHtml(vditor.getValue(), title, state.theme, state.path, exportCss());
 }
 
 async function exportHtml() {
   if (state.kind !== 'md') return toast('仅文档可导出');
-  const p = await window.omp.exportHtml(standaloneHtml(), baseName(state.path).replace(/\.(md|markdown|txt)$/i, '') || 'untitled');
+  const p = await window.omp.exportHtml(await standaloneHtml(), baseName(state.path).replace(/\.(md|markdown|txt)$/i, '') || 'untitled');
   if (p) toast('已导出 HTML：' + baseName(p));
 }
 async function exportPdf() {
   if (state.kind !== 'md') return toast('仅文档可导出');
-  const p = await window.omp.exportPdf(standaloneHtml(), baseName(state.path).replace(/\.(md|markdown|txt)$/i, '') || 'untitled');
+  const p = await window.omp.exportPdf(await standaloneHtml(), baseName(state.path).replace(/\.(md|markdown|txt)$/i, '') || 'untitled');
   if (p) toast('已导出 PDF：' + baseName(p));
 }
 
@@ -813,7 +822,7 @@ async function aboutText() {
     '',
     `作者：${i.author || 'Brian98Z'}  ${i.authorUrl || 'https://github.com/Brian98Z'}`,
     `渲染内核：Vditor ${i.vditor || '?'}${lute}（MIT 许可，© Vanessa219 及贡献者）`,
-    `运行时：Electron ${i.electron} · Chromium ${i.chrome} · Node ${i.node}`,
+    `运行时：Tauri ${i.tauri} · ${i.webview.name} (${i.os} ${i.arch})`,
   ].join('\n');
 }
 async function showAbout() {
@@ -836,6 +845,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   initEditor();
 
   window.omp.onMenu((msg) => { if (!appReady) pendingCmds.push(msg); else dispatch(msg); });
+  window.omp.onDragDrop((paths) => { if (paths[0]) openPath(paths[0]); });
+  const startup = await window.omp.frontendReady();
+  (Array.isArray(startup) ? startup : []).forEach((msg) => { if (!appReady) pendingCmds.push(msg); else dispatch(msg); });
 
   $$('.seg-btn').forEach((b) => b.addEventListener('click', () => showPane(b.dataset.pane)));
   $('#btn-open-folder').addEventListener('click', () => openFolder());
@@ -890,20 +902,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (a && $('#editor').contains(a) && !a.title) a.title = a.getAttribute('href') + '\n（Ctrl+点击打开）';
   });
 
-  // 拖放打开（Electron ≥32 需用 webUtils 取路径）
-  document.addEventListener('dragover', (e) => e.preventDefault());
-  document.addEventListener('drop', (e) => {
-    e.preventDefault();
-    const f = e.dataTransfer.files[0];
-    if (!f) return;
-    const p = (f.path) || (window.omp.pathForFile && window.omp.pathForFile(f));
-    if (p) openPath(p);
-  });
-
-  window.onbeforeunload = () => {
-    if (!state.dirty) return;
-    return window.omp.confirmDiscard() ? undefined : false;
-  };
 
   // 启动时的文件夹由主进程统一下发（默认目录：上次使用，其次桌面）
 });
