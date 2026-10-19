@@ -1,6 +1,6 @@
 {
   "name": "musemark",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "本地 Markdown 桌面编辑器与媒体预览器（系统 WebView）",
   "private": true,
   "author": "Brian98Z (https://github.com/Brian98Z)",

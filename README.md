@@ -13,6 +13,7 @@ An offline Markdown editor and image, audio, and video viewer built with Tauri 2
 - Image zoom and audio/video playback with seeking.
 - Light, dark, warm, and system themes; focus mode, typewriter mode, outline, and document zoom.
 - Self-contained HTML export with embedded styles, fonts, and local images; PDF export on Windows.
+- One-click copy for WeChat Official Account, Zhihu, and Toutiao: renders the document to HTML with inline styles so pasted articles keep headings, lists, quotes, code blocks, and tables without re-styling.
 - Local editing without an account or online service. External links open in the system browser.
 
 ## Download and install
@@ -29,12 +30,12 @@ Choose an installer from **Assets**, not the source-code archives. Select x64 fo
 
 - **Windows:** run the installer. It is not code-signed, so Windows may show an unknown-publisher warning.
 - **macOS:** open the DMG and drag MuseMark into Applications. The app is not notarized; if blocked, allow it in Privacy & Security only after verifying its source.
-- **Debian/Ubuntu:** install with `sudo apt install ./MuseMark-1.0.0-linux-x64.deb` (use the ARM64 filename on ARM).
+- **Debian/Ubuntu:** install with `sudo apt install ./MuseMark-1.1.0-linux-x64.deb` (use the ARM64 filename on ARM).
 - **AppImage:** make the file executable with `chmod +x <file>.AppImage`, then run it.
 
 ### Limitations
 
-PDF export is Windows-only. Media format support depends on the system WebView. Linux builds target Ubuntu 22.04 (x64) and Ubuntu 24.04 (ARM64); older distributions may be incompatible. Windows ARM64 native launch and AppImage execution have not been verified.
+PDF export is Windows-only. Media format support depends on the system WebView. Linux builds target Ubuntu 22.04 (x64) and Ubuntu 24.04 (ARM64); older distributions may be incompatible. Windows ARM64 native launch and AppImage execution have not been verified. On Windows, most keyboard shortcuts are handled inside the page because WebView2 swallows native menu accelerators (see F1 in-app help for the full list); `Ctrl+Shift+0` (actual size) is reserved by Chinese IME language switching and was remapped to `Ctrl+Alt+0`.
 
 ## Build
 

@@ -362,10 +362,9 @@ body {
 }
 .vditor-preview__publish-menu button:hover,
 .vditor-preview__publish-menu button:focus-visible { background: var(--bg-hover); color: var(--fg); outline: none; }
-.vditor-preview__publish-menu button svg { display: block; width: 20px; height: 20px; fill: currentColor; }
+.vditor-preview__publish-menu button svg { display: block; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 #editor .vditor-toolbar [data-type="edit-mode"] + .vditor-hint button[data-mode="sv"] { display: none !important; }
-.vditor-preview__publish-menu button[data-publish-target="toutiao"] svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* 工具栏贴近窗口顶边，统一将内置提示放到图标下方，避免向上弹出被窗口裁切 */
 #editor .vditor-toolbar .vditor-tooltipped::after {

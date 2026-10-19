@@ -68,6 +68,130 @@ const tbIcon = (id) =>
 
 let publishMenuDismiss = null;
 
+/* 公众号编辑器会剥离 <style> 标签与 class（保留内联 style），参考 doocs/md 的做法：
+   把 vditor-reset 的基础排版逐节点内联，粘贴后无需选主题也能保持可读排版。 */
+function inlinePublishStyles(holder) {
+  const rules = [
+    ['h1', 'margin:24px 0 16px;font-size:22px;font-weight:700;line-height:1.4;'],
+    ['h2', 'margin:20px 0 14px;font-size:20px;font-weight:700;line-height:1.4;'],
+    ['h3', 'margin:18px 0 12px;font-size:18px;font-weight:700;line-height:1.4;'],
+    ['h4', 'margin:16px 0 10px;font-size:16px;font-weight:700;line-height:1.4;'],
+    ['h5', 'margin:14px 0 10px;font-size:15px;font-weight:700;line-height:1.4;'],
+    ['h6', 'margin:14px 0 10px;font-size:14px;font-weight:700;color:#888;line-height:1.4;'],
+    ['p', 'margin:0 0 14px;line-height:1.75;font-size:15px;letter-spacing:0.5px;white-space:pre-wrap;'],
+    ['ul', 'margin:0 0 14px;padding-left:24px;line-height:1.75;font-size:15px;'],
+    ['ol', 'margin:0 0 14px;padding-left:24px;line-height:1.75;font-size:15px;'],
+    ['li', 'margin:4px 0;line-height:1.75;'],
+    ['blockquote', 'margin:0 0 14px;padding:10px 14px;border-left:3px solid #42b983;background:#f7f7f7;color:#666;line-height:1.75;font-size:14px;'],
+    ['blockquote p', 'margin:0;line-height:1.75;'],
+    ['pre', 'margin:0 0 14px;padding:12px;overflow-x:auto;background:#f6f8fa;border-radius:4px;font-size:13px;line-height:1.6;'],
+    ['pre code', 'background:transparent;padding:0;border-radius:0;font-family:Consolas,Menlo,monospace;white-space:pre;'],
+    ['code', 'background:rgba(66,185,131,0.12);padding:2px 5px;border-radius:3px;font-family:Consolas,Menlo,monospace;font-size:13px;color:#c7254e;'],
+    ['table', 'border-collapse:collapse;margin:0 0 14px;width:100%;font-size:14px;'],
+    ['th', 'border:1px solid #d9d9d9;padding:8px 12px;background:#f2f2f2;font-weight:700;text-align:left;'],
+    ['td', 'border:1px solid #d9d9d9;padding:8px 12px;text-align:left;'],
+    ['a', 'color:#42b983;text-decoration:none;border-bottom:1px solid #42b983;word-break:break-all;'],
+    ['img', 'max-width:100%;height:auto;display:block;margin:10px auto;border-radius:4px;'],
+    ['hr', 'border:none;border-top:1px solid #ddd;margin:20px 0;'],
+    ['strong', 'font-weight:700;color:#0f0f0f;'],
+    ['del', 'text-decoration:line-through;color:#999;'],
+    ['sup', 'font-size:11px;'],
+  ];
+  for (const [selector, style] of rules) {
+    holder.querySelectorAll(selector).forEach((el) => {
+      el.style.cssText = style + el.style.cssText;
+    });
+  }
+  // KaTeX 展示公式块居中
+  holder.querySelectorAll('.katex-display').forEach((el) => {
+    el.style.cssText += 'margin:14px 0;overflow-x:auto;';
+  });
+}
+
+/* 第三方发布：把当前文档渲染成 HTML（复用导出的独立渲染管线），按平台修正格式
+   （知乎公式转图片、公众号 KaTeX 修正）后写入剪贴板。
+   不依赖 previewElement，源码/实时渲染模式、是否开过预览都可用。 */
+async function copyForPublish(target) {
+  if (state.kind !== 'md') { toast('仅文档可发布'); return; }
+  if (!window.Vditor || typeof Vditor.preview !== 'function') { toast('发布复制暂不可用'); return; }
+  toast('正在生成发布内容…');
+  try {
+    const holder = document.createElement('div');
+    holder.className = 'vditor-reset';
+    holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:920px;pointer-events:none';
+    document.body.appendChild(holder);
+    await Vditor.preview(holder, vditor.getValue(), {
+      cdn: './vendor/vditor', lang: 'zh_CN',
+      math: { engine: 'KaTeX', inlineDigit: true },
+      hljs: { style: 'github', lineNumber: true },
+      markdown: { toc: false, mark: true, footnotes: true, autoSpace: true },
+    });
+    // 等公式/图表渲染完成（同导出管线的等待策略）
+    const pending = () => [...holder.querySelectorAll('[data-type="math-block"],.language-math')]
+      .some((el) => !el.querySelector('.katex'))
+      || [...holder.querySelectorAll('.language-mermaid')].some((el) => !el.querySelector('svg'));
+    const until = Date.now() + 15000;
+    while (pending() && Date.now() < until) await new Promise((r) => setTimeout(r, 50));
+    if (pending()) throw new Error('公式或图表尚未渲染完成');
+    // 清理脚本/内联事件，避免粘贴内容携带可执行代码
+    holder.querySelectorAll('script,iframe,object,embed').forEach((el) => el.remove());
+    holder.querySelectorAll('*').forEach((el) => {
+      for (const attr of [...el.attributes]) if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
+    });
+    // 复刻 vditor copyToX 的平台修正（知乎公式转图片、公众号 KaTeX 展示修正）
+    if (target === 'zhihu') {
+      holder.querySelectorAll('.language-math').forEach((item) => {
+        item.outerHTML = `<img class="Formula-image" data-eeimg="true" src="//www.zhihu.com/equation?tex=" alt="${item.getAttribute('data-math') || ''}" style="display:block;margin:0 auto;max-width:100%;">`;
+      });
+    } else {
+      holder.querySelectorAll('.katex-html .base').forEach((item) => { item.style.display = 'initial'; });
+    }
+    holder.style.backgroundColor = '#fff';
+    holder.querySelectorAll('code').forEach((item) => { item.style.backgroundImage = 'none'; });
+    // 公众号编辑器会剥离 <style>，参考 doocs/md：把基础排版内联到每个节点
+    inlinePublishStyles(holder);
+    // 首尾插入空段，避免粘贴后与已有内容挤在一起（doocs/md createEmptyNode 同款）
+    const empty = () => {
+      const p = document.createElement('p');
+      p.innerHTML = '<br>';
+      return p;
+    };
+    holder.insertBefore(empty(), holder.firstChild);
+    holder.appendChild(empty());
+
+    const html = holder.innerHTML;
+    const plain = holder.textContent || '';
+    holder.remove();
+    // execCommand('copy') 在 await 之后会丢失点击带来的瞬时用户激活而被浏览器静默拦截；
+    // 异步 Clipboard API 的 Promise 载荷则明确允许在手势后完成写入
+    if (navigator.clipboard && window.ClipboardItem) {
+      const item = new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([plain], { type: 'text/plain' }),
+      });
+      await navigator.clipboard.write([item]);
+    } else {
+      const box = document.createElement('div');
+      box.contentEditable = 'true';
+      box.style.cssText = 'position:fixed;left:-10000px;top:0';
+      box.innerHTML = html;
+      document.body.appendChild(box);
+      const range = document.createRange();
+      range.selectNodeContents(box);
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      const ok = document.execCommand('copy');
+      box.remove();
+      sel.removeAllRanges();
+      if (!ok) throw new Error('剪贴板写入被拒绝');
+    }
+    toast(target === 'zhihu' ? '已复制，可到知乎进行粘贴' : '已复制，可到平台编辑器粘贴');
+  } catch (err) {
+    toast('发布复制失败：' + err.message);
+  }
+}
+
 function closePublishMenu() {
   document.querySelector('#publish-menu')?.remove();
   document.querySelector('.vditor-toolbar [data-type="publish"]')?.setAttribute('aria-expanded', 'false');
@@ -86,21 +210,15 @@ function togglePublishMenu() {
   menu.id = 'publish-menu';
   menu.className = 'vditor-preview__publish-menu';
   menu.setAttribute('role', 'menu');
-  menu.style.left = `${Math.max(8, Math.min(rect.right - 108, innerWidth - 112))}px`;
+  menu.style.left = `${Math.max(8, Math.min(rect.right - 56, innerWidth - 124))}px`;
   menu.style.top = `${rect.bottom + 4}px`;
-  menu.innerHTML = '<button type="button" role="menuitem" data-publish-target="mp-wechat" title="公众号" aria-label="公众号"><svg viewBox="0 0 32 32"><use href="#vditor-icon-mp-wechat"/></svg></button><button type="button" role="menuitem" data-publish-target="zhihu" title="知乎" aria-label="知乎"><svg viewBox="0 0 32 32"><use href="#vditor-icon-zhihu"/></svg></button><button type="button" role="menuitem" data-publish-target="toutiao" title="今日头条" aria-label="今日头条"><svg viewBox="0 0 24 24"><use href="#i-toutiao"/></svg></button>';
+  menu.innerHTML = '<button type="button" role="menuitem" data-publish-target="mp-wechat" title="公众号" aria-label="公众号"><svg viewBox="0 0 24 24"><use href="#i-mp-wechat"/></svg></button><button type="button" role="menuitem" data-publish-target="zhihu" title="知乎" aria-label="知乎"><svg viewBox="0 0 24 24"><use href="#i-zhihu"/></svg></button><button type="button" role="menuitem" data-publish-target="toutiao" title="今日头条" aria-label="今日头条"><svg viewBox="0 0 24 24"><use href="#i-toutiao"/></svg></button>';
   menu.addEventListener('click', (e) => {
     e.stopPropagation();
     const button = e.target.closest('[data-publish-target]');
     if (!button) return;
     const target = button.dataset.publishTarget;
-    const inner = vditor && vditor.vditor;
-    const preview = inner && inner.preview;
-    if (preview && typeof preview.copyToX === 'function' && preview.previewElement) {
-      preview.copyToX(inner, preview.previewElement.cloneNode(true), target);
-    } else {
-      toast('发布复制暂不可用');
-    }
+    copyForPublish(target);
     closePublishMenu();
   });
   document.body.appendChild(menu);
@@ -291,12 +409,14 @@ const viewerFit = () => { state.viewerZoom = 1; applyViewerZoom(); };
 
 /* -------------------------------------------------------------- 标题/状态 */
 function setDirty(v) {
-  if (state.dirty !== v) window.omp.setDirty(v).catch((error) => toast('未保存状态同步失败：' + error));
+  const sync = state.dirty !== v ? window.omp.setDirty(v) : Promise.resolve();
+  sync.catch((error) => toast('未保存状态同步失败：' + error));
   state.dirty = v;
   const el = $('#st-saved');
   el.textContent = v ? '未保存' : '已保存';
   el.classList.toggle('dirty', !!v);
   updateTitle();
+  return sync;
 }
 
 function updateTitle() {
@@ -365,7 +485,7 @@ async function writeCurrent(p) {
   if (!vditor) return false;
   try {
     await window.omp.write(p, vditor.getValue());
-    setDirty(false);
+    await setDirty(false);
     updateTitle();
     return true;
   } catch (err) {
@@ -679,7 +799,14 @@ const cmds = {
 
   'toggle-source': () => {
     if (state.kind !== 'md') return;
-    clickToolbar('edit-mode');
+    // edit-mode 是下拉项，clickToolbar 只会展开菜单；直接点选目标模式按钮完成切换
+    const targetMode = vditor.getCurrentMode() === 'sv' ? 'ir' : 'sv';
+    const modeButton = document.querySelector('.vditor-toolbar [data-type="edit-mode"]')?.parentElement.querySelector(`.vditor-hint button[data-mode="${targetMode}"]`);
+    if (modeButton) {
+      modeButton.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    } else {
+      clickToolbar('edit-mode');
+    }
     setTimeout(() => {
       let mode = null;
       try { mode = vditor.getCurrentMode && vditor.getCurrentMode(); } catch {}
@@ -802,11 +929,15 @@ function showShortcuts() {
     'MuseMark 快捷键',
     '',
     '文件：Ctrl+N 新建 · Ctrl+O 打开 · Ctrl+S 保存 · Ctrl+Shift+S 另存为',
-    '      Ctrl+Shift+O 打开文件夹 · Ctrl+W 关闭窗口 · Ctrl+Q 退出',
+    '      Ctrl+Shift+O 打开文件夹 · Ctrl+Shift+N 新窗口 · Ctrl+Shift+E 导出 HTML · Ctrl+Shift+P 导出 PDF',
+    '      Ctrl+W 关闭窗口 · Ctrl+Q 退出',
     '编辑：Ctrl+Z 撤销 · Ctrl+Shift+Z 重做 · Ctrl+F 查找',
-    '段落：Ctrl+1~6 标题 · Ctrl+0 正文 · Ctrl+Shift+K 代码块 · Ctrl+T 表格 · Ctrl+Shift+M 公式',
+    '段落：Ctrl+1~6 标题 · Ctrl+0 正文 · Ctrl+Shift+Q 引用 · Ctrl+Shift+X 任务 · Ctrl+Shift+[ ] 列表',
+    '      Ctrl+Shift+K 代码块 · Ctrl+T 表格 · Ctrl+Shift+M 公式',
     '格式：Ctrl+B 加粗 · Ctrl+I 斜体 · Ctrl+U 下划线 · Ctrl+Shift+H 高亮 · Ctrl+K 链接 · Ctrl+Shift+I 图片',
-    '视图：Ctrl+/ 源码 · Ctrl+Shift+1 侧栏 · Ctrl+Shift+2 大纲 · F8 专注 · F9 打字机 · Ctrl+=/- 缩放',
+    '      Ctrl+Shift+` 行内代码 · Ctrl+\\ 清除格式 · Ctrl+Enter 打开链接',
+    '视图：Ctrl+/ 源码 · Ctrl+Shift+1 侧栏 · Ctrl+Shift+2 大纲 · F8 专注 · F9 打字机',
+    '      Ctrl+=/- 缩放 · Ctrl+Alt+0 实际大小 · Ctrl+R 刷新 · Ctrl+Alt+1/2/3 切换主题',
     '媒体：空格 播放/暂停 · ← → 快退/快进 5 秒 · Ctrl+=/- 缩放图片',
   ].join('\n'));
 }
@@ -835,6 +966,127 @@ function dispatch(msg) {
   const fn = cmds[msg.cmd];
   if (fn) fn(msg.arg);
 }
+
+/* Windows 上 WebView2 会吞掉发给原生菜单加速器的按键（wry#451，上游未修），
+   菜单点击不受影响。这里在网页侧补一份同键位的兜底分发；
+   原生菜单事件正常到达时两条路径都会触发 dispatch，动作幂等故无副作用。 */
+const accelMap = (e) => {
+  const mod = e.ctrlKey || e.metaKey;
+  // SendInput 等注入的按键可能没有 e.code，统一用 e.key 匹配
+  const key = (e.key || '').toLowerCase();
+  if (mod && !e.altKey && !e.shiftKey) {
+    switch (key) {
+      case 'n': return 'new';
+      case 'o': return 'open-dialog';
+      case 's': return 'save';
+      case 'f': return 'find';
+      case 'r': return 'reload';
+      case '/': return 'toggle-source';
+      case 't': return 'table';
+      case '\\': return 'clear-format';
+      case '=': case '+': return 'zoom-in';
+      case '-': return 'zoom-out';
+    }
+    if (/^[1-6]$/.test(key)) return 'h' + key;
+    if (key === '0') return 'paragraph';
+    if (e.key === 'Enter') return 'open-link';
+  }
+  if (mod && e.shiftKey && !e.altKey) {
+    // Shift+数字在 Windows 产生 !/@ 等符号键，优先用 e.code 归位到数字
+    const digit = /^Digit([0-9])$/.test(e.code || '') ? e.code.slice(5) : null;
+    switch (key) {
+      case 'n': return 'new-window';
+      case 'o': return 'open-folder';
+      case 's': return 'save-as';
+      case 'e': return 'export-html';
+      case 'p': return 'export-pdf';
+      case 'q': return 'quote';
+      case 'x': return 'task';
+      case 'k': return 'code';
+      case 'm': return 'math';
+      case 'h': return 'mark';
+      case '`': case '~': return 'inline-code';
+      case '[': case '{': return 'olist';
+      case ']': case '}': return 'ulist';
+      case '0': case ')': return 'zoom-reset';
+      case '1': case '!': return 'toggle-sidebar';
+      case '2': case '@': return 'toggle-outline';
+    }
+    if (digit === '1') return 'toggle-sidebar';
+    if (digit === '2') return 'toggle-outline';
+    if (digit === '0') return 'zoom-reset';
+  }
+  if (mod && e.altKey && !e.shiftKey) {
+    if (key === '1') return { cmd: 'theme', arg: 'light' };
+    if (key === '2') return { cmd: 'theme', arg: 'dark' };
+    if (key === '3') return { cmd: 'theme', arg: 'warm' };
+    if (key === '0') return 'zoom-reset';
+  }
+  if (key === 'f8') return 'focus-mode';
+  if (key === 'f9') return 'typewriter-mode';
+  if (key === 'f1') return 'shortcuts';
+  return null;
+};
+
+let lastAccel = { cmd: null, at: 0 };
+function handleAccelerator(e) {
+  const hit = accelMap(e);
+  const cmd = typeof hit === 'string' ? hit : hit && hit.cmd;
+  if (!cmd || !cmds[cmd]) return false;
+  e.preventDefault();
+  // 原生菜单与网页兜底可能同时送达；切换类命令连发两次等于回到原状，这里去重
+  const now = Date.now();
+  if (lastAccel.cmd === cmd && now - lastAccel.at < 350) return true;
+  lastAccel = { cmd, at: now };
+  const msg = typeof hit === 'string' ? { cmd } : hit;
+  if (!appReady) pendingCmds.push(msg);
+  else dispatch(msg);
+  return true;
+}
+
+/* 复制为纯文本：人工复制文案时去掉 Markdown 标记符号。
+   Vditor 默认把选区复制成 Markdown 源文本；这里在捕获阶段改写剪贴板，
+   将选区对应的 Markdown 渲染为 HTML 后提取纯文本。代码块内部复制不受影响。 */
+function selectionPlainText(md) {
+  const lute = vditor && vditor.vditor && vditor.vditor.lute;
+  const holder = document.createElement('div');
+  holder.innerHTML = lute ? lute.Md2HTML(md) : '';
+  return (holder.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+document.addEventListener('copy', (e) => {
+  if (state.kind !== 'md' || !vditor) return;
+  let mode = 'ir';
+  try { mode = vditor.getCurrentMode ? vditor.getCurrentMode() : 'ir'; } catch {}
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || !sel.toString().trim()) return;
+  const editorEl = document.querySelector(`.vditor-${mode} .vditor-reset`) || document.querySelector('.vditor-reset');
+  if (!editorEl || !editorEl.contains(sel.anchorNode)) return;
+  const range = sel.getRangeAt(0);
+  // 源码模式下选中文本就是 Markdown 本身，直接送清洗
+  let md = sel.toString();
+  if (mode !== 'sv') {
+    // 仅当选区整体位于同一个代码块内时保持原样（保留缩进与代码语义）；
+    // ir 模式下编辑器根不是 <pre>，代码块才有独立 pre/code 祖先
+    const anc = range.commonAncestorContainer;
+    const ancEl = anc.nodeType === 1 ? anc : anc.parentElement;
+    const codeBlock = ancEl && ancEl.closest && ancEl.closest('pre, code');
+    if (codeBlock && !codeBlock.contains(editorEl) && codeBlock.textContent === range.toString()) return;
+    // 与 Vditor 自身复制逻辑一致：选区 DOM -> Markdown，保证标题/链接等标记完整
+    const temp = document.createElement('div');
+    temp.appendChild(range.cloneContents());
+    const lute = vditor.vditor.lute;
+    md = (lute && lute.VditorIRDOM2Md ? lute.VditorIRDOM2Md(temp.innerHTML) : md).trim();
+  }
+  md = md.trim();
+  if (!md.trim()) return;
+  const plain = selectionPlainText(md);
+  if (!plain) return;
+  e.stopPropagation();
+  e.preventDefault();
+  e.clipboardData.setData('text/plain', plain);
+  e.clipboardData.setData('text/html', '');
+}, true);
 
 window.addEventListener('DOMContentLoaded', async () => {
   let cfg = {};
@@ -872,8 +1124,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('#find-prev').addEventListener('click', () => doFind(false));
   $('#find-close').addEventListener('click', closeFind);
 
-  // 媒体快捷键：空格播放/暂停，左右方向键进退 5 秒
+  // 全局快捷键兜底（见 handleAccelerator 注释）+ 媒体快捷键：空格播放/暂停，左右方向键进退 5 秒
   document.addEventListener('keydown', (e) => {
+    if (handleAccelerator(e)) return;
     if (state.kind === 'md') return;
     const tag = (e.target && e.target.tagName) || '';
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;

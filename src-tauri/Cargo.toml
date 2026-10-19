@@ -1,6 +1,6 @@
 [package]
 name = "musemark"
-version = "1.0.0"
+version = "1.1.0"
 description = "Offline Markdown editor and media viewer"
 authors = ["Brian98Z"]
 license = "MIT"

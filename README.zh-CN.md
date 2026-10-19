@@ -13,6 +13,7 @@
 - 图片缩放、音视频播放与进度跳转。
 - 浅色、深色、暖色和系统主题，支持专注模式、打字机模式、大纲与文档缩放。
 - 导出内嵌样式、字体和本地图片的独立 HTML；Windows 支持 PDF 导出。
+- 一键复制到公众号 / 知乎 / 今日头条：自动渲染为带内联样式的 HTML，粘贴后标题、列表、引用、代码块、表格排版不丢。
 - 本地编辑，无需账号或在线服务；外部链接交给系统浏览器打开。
 
 ## 下载与安装
@@ -29,12 +30,12 @@
 
 - **Windows：**运行安装器。程序未代码签名，系统可能提示未知发布者。
 - **macOS：**打开 DMG，将 MuseMark 拖入 Applications。程序未 Apple 公证；若被拦截，请在确认来源后通过“隐私与安全性”放行。
-- **Debian/Ubuntu：**运行 `sudo apt install ./MuseMark-1.0.0-linux-x64.deb`，ARM 设备使用 ARM64 文件名。
+- **Debian/Ubuntu：**运行 `sudo apt install ./MuseMark-1.1.0-linux-x64.deb`，ARM 设备使用 ARM64 文件名。
 - **AppImage：**运行 `chmod +x <文件名>.AppImage` 赋予执行权限，再启动文件。
 
 ### 限制
 
-PDF 导出仅支持 Windows。媒体格式支持取决于系统 WebView。Linux 构建基线为 Ubuntu 22.04（x64）和 Ubuntu 24.04（ARM64），较旧发行版可能不兼容。Windows ARM64 原生启动和 AppImage 实际运行尚未验证。
+PDF 导出仅支持 Windows。媒体格式支持取决于系统 WebView。Linux 构建基线为 Ubuntu 22.04（x64）和 Ubuntu 24.04（ARM64），较旧发行版可能不兼容。Windows ARM64 原生启动和 AppImage 实际运行尚未验证。Windows 上多数快捷键由页面内处理（WebView2 会吞掉原生菜单加速键，完整列表见应用内 F1 帮助）；「实际大小」原 `Ctrl+Shift+0` 被中文输入法的语言切换占用，已改绑 `Ctrl+Alt+0`。
 
 ## 构建
 
